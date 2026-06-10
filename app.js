@@ -233,8 +233,16 @@
         }
 
         async test() {
-            const res = await this.api('');
-            return res.ok;
+            // Must verify token actually works (repo is public, so unauthenticated requests also return 200)
+            const userRes = await fetch('https://api.github.com/user', {
+                headers: { Authorization: `token ${this.token}`, Accept: 'application/vnd.github.v3+json' }
+            });
+            if (!userRes.ok) return { ok: false, reason: 'Token 無效或已過期' };
+            const repoRes = await this.api('');
+            if (!repoRes.ok) return { ok: false, reason: '無法訪問 repo' };
+            const repo = await repoRes.json();
+            if (!repo.permissions || !repo.permissions.push) return { ok: false, reason: 'Token 沒有寫入權限，請確認 Contents 權限設為 Read and Write' };
+            return { ok: true };
         }
     }
 
@@ -330,27 +338,33 @@
         if (!pass || !pat) { shake($('#btn-setup')); return; }
         if (pass.length < 4) { toast('密碼至少 4 個字元', 'error'); return; }
 
-        showLoading('設定中...');
+        showLoading('驗證 Token...');
         try {
-            // Test PAT
+            // Step 1: Test PAT
             const testGh = new GitHub(pat);
-            if (!(await testGh.test())) throw new Error('Token 無效或沒有 repo 權限');
+            const testResult = await testGh.test();
+            if (!testResult.ok) throw new Error(testResult.reason);
 
-            // Crypto
+            // Step 2: Crypto
+            showLoading('加密設定中...');
             const salt = generateSalt();
             const pwh = await hashPw(pass, salt);
             const ep = await encryptStr(pat, pass, salt);
 
-            // Store
+            // Step 3: Store
             localStorage.setItem(LS.SALT, salt);
             localStorage.setItem(LS.PW_HASH, pwh);
             localStorage.setItem(LS.ENC_PAT, ep);
             localStorage.setItem(LS.CONFIGURED, '1');
 
-            // Init GitHub
+            // Step 4: Init GitHub
             gh = testGh;
             currentPassword = pass;
+            showLoading('初始化數據分支...');
             await gh.ensureDataBranch();
+
+            // Step 5: Load trades
+            showLoading('載入交易記錄...');
             const data = await gh.loadTrades();
             trades = data.trades;
             tradesSha = data.sha;
@@ -361,8 +375,9 @@
             updateStats();
             toast('✅ 設定完成！歡迎使用', 'success');
         } catch (err) {
+            console.error('Setup failed:', err);
             hideLoading();
-            toast('❌ ' + err.message, 'error');
+            toast('❌ ' + (err.message || '設定失敗，請檢查 Token 是否正確'), 'error');
         }
     });
 
