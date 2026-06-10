@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sasella Trading Journal — 記錄每一筆交易，追蹤盈虧比，日曆可視化你的交易表現。">
+    <title>Sasella Trading Journal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <!-- ===== Top Navigation ===== -->
+    <nav id="top-nav">
+        <div class="nav-brand">
+            <div class="nav-logo">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <rect width="28" height="28" rx="7" fill="url(#logoGrad)"/>
+                    <path d="M7 14L12 9L17 14L12 19Z" fill="white" opacity="0.9"/>
+                    <path d="M14 10L19 14L14 18" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0" y1="0" x2="28" y2="28">
+                            <stop stop-color="#6366f1"/>
+                            <stop offset="1" stop-color="#8b5cf6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span class="nav-title">Trading Journal</span>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-view="journal" id="tab-journal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                交易記錄
+            </button>
+            <button class="nav-tab" data-view="calendar" id="tab-calendar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                日曆
+            </button>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-primary" id="btn-new-trade">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                新交易
+            </button>
+        </div>
+    </nav>
+
+    <!-- ===== Main Content ===== -->
+    <main id="main-content">
+        <!-- === Journal View === -->
+        <section id="view-journal" class="view active">
+            <!-- Stats Bar -->
+            <div class="stats-bar" id="stats-bar">
+                <div class="stat-card">
+                    <span class="stat-label">總交易</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">持倉中</span>
+                    <span class="stat-value stat-open" id="stat-open">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">勝率</span>
+                    <span class="stat-value" id="stat-winrate">—</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">平均盈虧比</span>
+                    <span class="stat-value" id="stat-avg-rr">—</span>
+                </div>
+            </div>
+
+            <!-- Trade List -->
+            <div class="trade-list" id="trade-list">
+                <div class="empty-state" id="empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <p>暫無交易記錄</p>
+                    <p class="empty-sub">點擊「新交易」開始記錄你的第一筆倉位</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- === Calendar View === -->
+        <section id="view-calendar" class="view">
+            <div class="calendar-controls">
+                <button class="cal-nav-btn" id="cal-prev-year">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h2 class="cal-year" id="cal-year">2026</h2>
+                <button class="cal-nav-btn" id="cal-next-year">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                <!-- 12 months rendered by JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- ===== Modal: New Trade ===== -->
+    <div class="modal-overlay" id="modal-new-trade">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📈 開倉記錄</h2>
+                <button class="modal-close" id="modal-close-new">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Screenshot paste area -->
+                <div class="paste-area" id="paste-area-open">
+                    <div class="paste-placeholder" id="paste-placeholder-open">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <p>Ctrl+V 貼上截圖</p>
+                        <p class="paste-sub">或點擊選擇圖片</p>
+                    </div>
+                    <img id="preview-open" class="paste-preview" style="display:none"/>
+                    <input type="file" id="file-input-open" accept="image/*" style="display:none"/>
+                </div>
+
+                <!-- Trade inputs -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>倉位方向</label>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active" data-direction="long" id="btn-long">📈 多 (Long)</button>
+                            <button class="toggle-btn" data-direction="short" id="btn-short">📉 空 (Short)</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-entry">開倉價格</label>
+                        <input type="number" id="input-entry" placeholder="例：21500.50" step="any"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-tp">TP 價格</label>
+                        <input type="number" id="input-tp" placeholder="止盈價位" step="any"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-sl">SL 價格</label>
+                        <input type="number" id="input-sl" placeholder="止損價位" step="any"/>
+                    </div>
+                    <div class="form-group form-full">
+                        <label>預計盈虧比 (R:R)</label>
+                        <div class="rr-display" id="rr-display-open">—</div>
+                    </div>
+                    <div class="form-group form-full">
+                        <label for="input-reason">開倉原因</label>
+                        <textarea id="input-reason" rows="3" placeholder="這筆倉的邏輯是什麼？例：NY Session VAH 反轉，Delta 異常..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btn-cancel-new">取消</button>
+                <button class="btn-primary" id="btn-confirm-new">✅ 確認開倉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Close Trade ===== -->
+    <div class="modal-overlay" id="modal-close-trade">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📊 結倉記錄</h2>
+                <button class="modal-close" id="modal-close-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Screenshot paste area -->
+                <div class="paste-area" id="paste-area-close">
+                    <div class="paste-placeholder" id="paste-placeholder-close">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <p>Ctrl+V 貼上結倉截圖</p>
+                        <p class="paste-sub">或點擊選擇圖片</p>
+                    </div>
+                    <img id="preview-close" class="paste-preview" style="display:none"/>
+                    <input type="file" id="file-input-close" accept="image/*" style="display:none"/>
+                </div>
+
+                <!-- Close trade inputs -->
+                <div class="form-grid">
+                    <div class="form-group form-full">
+                        <label>結果</label>
+                        <div class="toggle-group triple">
+                            <button class="toggle-btn result-btn" data-result="win" id="btn-win">🟢 盈利</button>
+                            <button class="toggle-btn result-btn" data-result="breakeven" id="btn-breakeven">⚪ 保本</button>
+                            <button class="toggle-btn result-btn" data-result="loss" id="btn-loss">🔴 虧損</button>
+                        </div>
+                    </div>
+                    <div class="form-group form-full" id="close-tp-group" style="display:none">
+                        <label for="input-close-price">最終 TP 價位</label>
+                        <input type="number" id="input-close-price" placeholder="實際平倉價" step="any"/>
+                    </div>
+                    <div class="form-group form-full">
+                        <label>最終盈虧比</label>
+                        <div class="rr-display" id="rr-display-close">—</div>
+                    </div>
+                    <div class="form-group form-full">
+                        <label for="input-close-notes">結倉備註（選填）</label>
+                        <textarea id="input-close-notes" rows="2" placeholder="為什麼在這平倉？有什麼可以改善的？"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btn-cancel-close">取消</button>
+                <button class="btn-primary" id="btn-confirm-close">✅ 確認結倉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: View Trade Detail ===== -->
+    <div class="modal-overlay" id="modal-detail">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="detail-title">交易詳情</h2>
+                <button class="modal-close" id="modal-close-detail">&times;</button>
+            </div>
+            <div class="modal-body" id="detail-body">
+                <!-- Filled by JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-danger" id="btn-delete-trade" style="margin-right:auto">🗑️ 刪除</button>
+                <button class="btn-secondary" id="btn-close-detail">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
