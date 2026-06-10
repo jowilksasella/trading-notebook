@@ -9,7 +9,6 @@
     const IMG_DIR = 'img';
     const LS = {
         CONFIGURED: 'tj_ok',
-        USERNAME: 'tj_user',
         SALT: 'tj_salt',
         PW_HASH: 'tj_pwh',
         ENC_PAT: 'tj_ep',
@@ -295,7 +294,6 @@
         if (isConfigured()) {
             $('#auth-setup').style.display = 'none';
             $('#auth-login').style.display = 'block';
-            $('#login-name').textContent = localStorage.getItem(LS.USERNAME) || '';
             $('#login-pass').focus();
         } else {
             $('#auth-setup').style.display = 'block';
@@ -311,7 +309,6 @@
 
     // Setup
     $('#btn-setup').addEventListener('click', async () => {
-        const user = $('#setup-user').value.trim();
         const pass = $('#setup-pass').value;
         const pat = $('#setup-pat').value.trim();
         if (!pass || !pat) { shake($('#btn-setup')); return; }
@@ -332,7 +329,6 @@
             localStorage.setItem(LS.SALT, salt);
             localStorage.setItem(LS.PW_HASH, pwh);
             localStorage.setItem(LS.ENC_PAT, ep);
-            localStorage.setItem(LS.USERNAME, user);
             localStorage.setItem(LS.CONFIGURED, '1');
 
             // Init GitHub
