@@ -64,6 +64,36 @@
     function toB64(str) { return btoa(unescape(encodeURIComponent(str))); }
     function fromB64(b64) { return decodeURIComponent(escape(atob(b64))); }
 
+    // ==================== DATA ENCRYPTION ====================
+    // Fixed salt so same password = same key on any device
+    const DATA_SALT = 'sasella-trading-notebook-2026';
+
+    async function deriveDataKey(password) {
+        const enc = new TextEncoder();
+        const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: enc.encode(DATA_SALT), iterations: 100000, hash: 'SHA-256' },
+            km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+        );
+    }
+    async function encryptBytes(data, password) {
+        const key = await deriveDataKey(password);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+        const out = new Uint8Array(12 + ct.byteLength);
+        out.set(iv); out.set(new Uint8Array(ct), 12);
+        return out;
+    }
+    async function decryptBytes(data, password) {
+        const key = await deriveDataKey(password);
+        const iv = data.slice(0, 12);
+        const ct = data.slice(12);
+        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+        return new Uint8Array(dec);
+    }
+    function u8ToB64(u8) { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); }
+    function b64ToU8(b64) { const s = atob(b64); const u8 = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i); return u8; }
+
     // ==================== GITHUB API ====================
     class GitHub {
         constructor(token) {
@@ -95,10 +125,13 @@
         async ensureDataBranch() {
             const res = await this.api(`/git/refs/heads/${DATA_BRANCH}`);
             if (res.ok) return;
-            // Create orphan branch
+            // Create orphan branch with encrypted empty trades
+            const emptyBytes = new TextEncoder().encode('[]');
+            const encrypted = await encryptBytes(emptyBytes, currentPassword);
+            const encB64 = u8ToB64(encrypted);
             const blob = await this.apiJson('/git/blobs', {
                 method: 'POST',
-                body: JSON.stringify({ content: toB64('[]'), encoding: 'base64' }),
+                body: JSON.stringify({ content: encB64, encoding: 'base64' }),
             });
             const tree = await this.apiJson('/git/trees', {
                 method: 'POST',
@@ -148,32 +181,40 @@
             return (await res.json()).content.sha;
         }
 
-        // Trades
+        // Trades (encrypted)
         async loadTrades() {
             const file = await this.getFile(TRADES_FILE);
             if (!file) return { trades: [], sha: null };
-            const content = fromB64(file.content.replace(/\n/g, ''));
-            return { trades: JSON.parse(content), sha: file.sha };
+            const encrypted = b64ToU8(file.content.replace(/\n/g, ''));
+            const decrypted = await decryptBytes(encrypted, currentPassword);
+            const json = new TextDecoder().decode(decrypted);
+            return { trades: JSON.parse(json), sha: file.sha };
         }
         async saveTrades(trades, sha) {
-            const b64 = toB64(JSON.stringify(trades, null, 2));
+            const json = JSON.stringify(trades, null, 2);
+            const bytes = new TextEncoder().encode(json);
+            const encrypted = await encryptBytes(bytes, currentPassword);
+            const b64 = u8ToB64(encrypted);
             return this.putFile(TRADES_FILE, b64, sha, `Update: ${trades.length} trades`);
         }
 
-        // Images
+        // Images (encrypted)
         async uploadImage(tradeId, type, dataUrl) {
-            const b64 = dataUrl.split(',')[1];
-            const ext = dataUrl.includes('png') ? 'png' : 'jpg';
-            const path = `${IMG_DIR}/${tradeId}_${type}.${ext}`;
-            await this.putFile(path, b64, null, `Screenshot: ${tradeId} ${type}`);
+            const rawB64 = dataUrl.split(',')[1];
+            const rawBytes = b64ToU8(rawB64);
+            const encrypted = await encryptBytes(rawBytes, currentPassword);
+            const encB64 = u8ToB64(encrypted);
+            const path = `${IMG_DIR}/${tradeId}_${type}.enc`;
+            await this.putFile(path, encB64, null, `Screenshot: ${tradeId} ${type}`);
             return path;
         }
         async getImage(path) {
             const file = await this.getFile(path);
             if (!file) return null;
-            const ext = path.split('.').pop();
-            const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-            return `data:${mime};base64,${file.content.replace(/\n/g, '')}`;
+            const encrypted = b64ToU8(file.content.replace(/\n/g, ''));
+            const decrypted = await decryptBytes(encrypted, currentPassword);
+            const imgB64 = u8ToB64(decrypted);
+            return `data:image/png;base64,${imgB64}`;
         }
 
         async test() {
