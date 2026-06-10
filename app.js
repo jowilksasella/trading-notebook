@@ -314,7 +314,7 @@
         const user = $('#setup-user').value.trim();
         const pass = $('#setup-pass').value;
         const pat = $('#setup-pat').value.trim();
-        if (!user || !pass || !pat) { shake($('#btn-setup')); return; }
+        if (!pass || !pat) { shake($('#btn-setup')); return; }
         if (pass.length < 4) { toast('密碼至少 4 個字元', 'error'); return; }
 
         showLoading('設定中...');
