@@ -184,10 +184,26 @@
         async loadTrades() {
             const file = await this.getFile(TRADES_FILE);
             if (!file) return { trades: [], sha: null };
-            const encrypted = b64ToU8(file.content.replace(/\n/g, ''));
-            const decrypted = await decryptBytes(encrypted, currentPassword);
-            const json = new TextDecoder().decode(decrypted);
-            return { trades: JSON.parse(json), sha: file.sha };
+            try {
+                const raw = file.content.replace(/\n/g, '');
+                const encrypted = b64ToU8(raw);
+                const decrypted = await decryptBytes(encrypted, currentPassword);
+                const json = new TextDecoder().decode(decrypted);
+                return { trades: JSON.parse(json), sha: file.sha };
+            } catch (e) {
+                // Maybe old unencrypted data — try plain JSON
+                try {
+                    const plain = fromB64(file.content.replace(/\n/g, ''));
+                    const trades = JSON.parse(plain);
+                    // Re-save as encrypted
+                    const newSha = await this.saveTrades(trades, file.sha);
+                    return { trades, sha: newSha };
+                } catch {
+                    // Corrupted — start fresh
+                    console.warn('trades.json corrupted, starting fresh');
+                    return { trades: [], sha: file.sha };
+                }
+            }
         }
         async saveTrades(trades, sha) {
             const json = JSON.stringify(trades, null, 2);
@@ -379,7 +395,14 @@
             updateStats();
         } catch (err) {
             hideLoading();
-            toast('❌ ' + err.message, 'error');
+            const msg = err.message || '未知錯誤';
+            if (msg === '密碼錯誤') {
+                toast('❌ 密碼錯誤', 'error');
+            } else if (msg.includes('decrypt') || msg.includes('operation-specific')) {
+                toast('❌ 解密失敗，請確認密碼是否與設定時一致', 'error');
+            } else {
+                toast('❌ 登入失敗：' + msg, 'error');
+            }
             $('#login-pass').value = '';
             $('#login-pass').focus();
         }
